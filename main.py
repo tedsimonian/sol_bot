@@ -1,4 +1,4 @@
-import ccxt, schedule 
+import schedule 
 import time
 
 from trader.utilities import *
@@ -14,7 +14,6 @@ timeframe = '1h' # use m for minutes and h for hours, EX. 1m (1 minute) or 4h (4
 symbol = 'BTC/USDT'
 size = 1000
 params = {'timeInForce': 'PostOnly'}
-
 
 def bot():
         # get your current position in the market
@@ -32,11 +31,11 @@ def bot():
         bid = kucoin.fetch_ticker(symbol)['bid'] 
 
         if not in_position:
-            #place a long order if the nadarya indicator has said to buy OR if the stoch rsi indicator suggests it is oversold
+            # place a long order if the nadarya indicator has said to buy OR if the stoch rsi indicator suggests it is oversold
             if nadarya_buy_signal or is_oversold(candles['stoch_rsi'], rsi_window, 1, rsi_targets[0]):
                 order = kucoin.create_limit_buy_order(symbol, size, price=bid, params=params)
 
-            #place a short order if the nadarya indicator has said to sell OR if the stoch rsi indicator suggests it is overbought
+            # place a short order if the nadarya indicator has said to sell OR if the stoch rsi indicator suggests it is overbought
             elif nadarya_sell_signal or is_overbought(candles['stoch_rsi'], rsi_window, 1, rsi_targets[1]):
                 order = kucoin.create_limit_sell_order(symbol, size, price=bid, params=params)
         elif in_position:
@@ -50,8 +49,8 @@ def bot():
                 if nadarya_buy_signal or is_oversold(candles['stoch_rsi'], rsi_window, times=2, target=rsi_targets[0]):
                     close_position(kucoin, symbol)
 
-#run the bot every 20 seconds
-schedule.every(1).seconds.do(bot)
+# run the bot every 20 seconds
+schedule.every(20).seconds.do(bot)
 
 while True:
     try:
