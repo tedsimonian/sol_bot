@@ -7,14 +7,14 @@ load_dotenv()
 
 binance_params = {
     'enableRateLimit': True,
-    'apiKey': os.getenv('BINANCE_API_KEY'),
-    'secret': os.getenv('BINANCE_SECRET'),
+    'apiKey': os.getenv('BINANCE_BACKTEST_API_KEY'),
+    'secret': os.getenv('BINANCE_BACKTEST_SECRET'),
 }
 
 kucoin_params = {
     'enableRateLimit': True,
-    'apiKey': os.getenv('KUCOIN_API_KEY'),
-    'secret': os.getenv('KUCOIN_SECRET'),
+    'apiKey': os.getenv('KUCOIN_BACKTEST_API_KEY'),
+    'secret': os.getenv('KUCOIN_BACKTEST_SECRET'),
 }
 
 def get_binance_connection():
