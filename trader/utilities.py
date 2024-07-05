@@ -1,13 +1,12 @@
-from datetime import datetime, time
 from pytz import timezone
-from time import sleep
+from time import sleep, time
 from ccxt import Exchange
 
 import pandas as pd
 import pandas_ta as ta
 import math
 
-symbol = 'uBTCUSD'
+symbol = 'BTC/USDT'
 index_pos = 4 # CHANGE BASED ON WHAT ASSET
 
 # the time between trades
@@ -176,7 +175,7 @@ def order_book(exchange: Exchange, symbol: str) -> bool:
     return vol_under_dec
 
 
-def get_candle_df(exchange: Exchange, symbol: str, timeframe: str, limit: int = 200, columns: list = ['timestamp', 'open', 'high', 'low', 'close', 'volume']) -> pd.DataFrame:
+def get_candle_df(exchange: Exchange, symbol: str, timeframe: str, limit: int = 500, columns: list = ['time','open','high','low','close','volume']) -> pd.DataFrame:
     """Fetch data from the exchange
 
     Args:
@@ -192,7 +191,7 @@ def get_candle_df(exchange: Exchange, symbol: str, timeframe: str, limit: int = 
     df = pd.DataFrame(ohlcv, columns=columns)
     df.set_index('time')
     
-    return ohlcv
+    return df
 
 
 def calc_stoch_rsi(df: pd.DataFrame, lookback: int = 14) -> None:
@@ -213,10 +212,10 @@ def calc_nadarya(df: pd.DataFrame, bandwidth: int = 8, source: str = 'close') ->
     src = df[source]
     out = []
     
-    for i, _v1 in src.iteritems():
+    for i, _v1 in src.items():
         tsum = 0
         sumw = 0
-        for j, v2 in src.iteritems():
+        for j, v2 in src.items():
             w = math.exp(-(math.pow(i-j,2)/(bandwidth * bandwidth * 2)))
             tsum += v2*w
             sumw += w
@@ -272,23 +271,26 @@ def get_position(exchange: Exchange, symbol: str) -> tuple[dict, bool, bool]:
     """
     get the info of your position for the given symbol.
     """
-    params = {'type':'swap', 'code':'USD'}
+    params = {'type':'swap', 'code':'USDT'}
     balance = exchange.fetch_balance(params=params)
+    # print('balance', balance)
     
-    # get your position for the provided symbol
-    position_info = [pos for pos in balance['info']['data']['positions'] if pos['symbol'] == symbol][0]
-
-    # if there is a position (side is none when no current position)
-    if position_info['side'] != 'None':
-        in_position = True
-        long = True if position_info['side'] == 'Buy' else False
-
-    # if not in position currently
+    # Check if 'positions' key exists and is not empty
+    if 'positions' in balance['info']['data']:
+        positions = balance['info']['data']['positions']
+        matching_positions = [pos for pos in positions if pos['symbol'] == symbol]
+        
+        if matching_positions:
+            position_info = matching_positions[0]
+            in_position = position_info['size'] != '0'
+            long = position_info['posSide'] == 'Long'
+            return position_info, in_position, long
+        else:
+            print(f"No positions found for symbol: {symbol}")
+            return None, False, False
     else:
-        in_position = False
-        long = None 
-
-    return position_info, in_position, long
+        print("No positions data available in balance")
+        return None, False, False
 
 
 def close_position(exchange: Exchange, symbol: str) -> None:
@@ -380,15 +382,15 @@ def ask_bid(exchange: Exchange, symbol: str) -> tuple[float, float]:
 def open_positions(exchange: Exchange, symbol: str) -> tuple[list, bool, float, bool, int, dict]:
 
     # what is the position index for that symbol?
-    if symbol == 'uBTCUSD':
+    if symbol == 'BTC/USDT':
         index_pos = 4
-    elif symbol == 'APEUSD':
+    elif symbol == 'SOL/USDT':
         index_pos = 2
-    elif symbol == 'ETHUSD':
+    elif symbol == 'ETH/USDT':
         index_pos = 3
-    elif symbol == 'DOGEUSD':
+    elif symbol == 'DOGE/USDT':
         index_pos = 1
-    elif symbol == 'u100000SHIBUSD':
+    elif symbol == 'SHIB/USDT':
         index_pos = 0
     else:
         index_pos = None # just break it... 

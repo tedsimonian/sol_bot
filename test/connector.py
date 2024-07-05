@@ -3,7 +3,7 @@ import ccxt
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 binance_params = {
     'enableRateLimit': True,
