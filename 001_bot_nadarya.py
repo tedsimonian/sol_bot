@@ -25,7 +25,7 @@ def bot():
         candles = get_candle_df(phemex, symbol, timeframe) # get the last 55 candle data for the timeframe
         
         # add the nadarya indicator to the candles dataframe, along with its buy and sell signal columns
-        nadarya_buy_signal, nadarya_sell_signal = calc_nadarya(candles)
+        nadarya_buy_signal, nadarya_sell_signal = calc_nadarya(candles) 
         
         # add the stoch_rsi indicator as a column to the candles dataframe
         calc_stoch_rsi(candles)

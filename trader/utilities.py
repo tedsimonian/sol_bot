@@ -47,7 +47,7 @@ def df_sma(exchange: Exchange, symbol: str, timeframe: str, limit: int, sma: int
     df_sma[f'sma{sma}_{timeframe}'] = df_sma.close.rolling(sma).mean()
 
     # if bid < the 20 day sma then = BEARISH, if bid > 20 day sma = BULLISH
-    bid = ask_bid(symbol)[1]
+    ask, bid = ask_bid(exchange, symbol)
     
     # if sma > bid = SELL, if sma < bid = BUY
     df_sma.loc[df_sma[f'sma{sma}_{timeframe}']>bid, 'sig'] = 'SELL'
@@ -143,12 +143,10 @@ def order_book(exchange: Exchange, symbol: str) -> bool:
 
     # open_positions() open_positions, open_pos_bool, open_pos_size, long
 
-    open_position = open_positions(exchange, symbol)
-    open_pos_tf = open_position[1]
-    long = open_position[3]
-    print(f'open_pos_tf: {open_pos_tf} || long: {long}')
+    open_positions, open_pos_bool, open_pos_size, long, index_pos, balance = get_open_positions(exchange, symbol)
+    print(f'open_pos_bool: {open_pos_bool} || long: {long}')
 
-    if open_pos_tf == True:
+    if open_pos_bool == True:
         if long == True:
             print('we are in a long position...')
             if control_dec < vol_decimal: # vol_decimal set to .4 at top
@@ -302,7 +300,7 @@ def close_position(exchange: Exchange, symbol: str) -> None:
     exchange.cancel_all_orders(symbol)
 
     # get your current position information (position is a dict of position information)
-    position,in_position,long = get_position(exchange, symbol)
+    position, in_position, long = get_position(exchange, symbol)
     
     # keep trying to close position every 30 seconds until successfully closed
     while in_position:
@@ -369,38 +367,41 @@ def ask_bid(exchange: Exchange, symbol: str) -> tuple[float, float]:
         ask: float - the current ask price
         bid: float - the current bid price
     """
-    order_book = exchange.fetch_order_book(symbol)
+    ob = exchange.fetch_order_book(symbol)
 
-    bid = order_book['bids'][0][0]
-    ask = order_book['asks'][0][0]
+    bid = ob['bids'][0][0]
+    ask = ob['asks'][0][0]
 
     print(f'this is the ask for {symbol} {ask}')
 
     return ask, bid
 
 
-def open_positions(exchange: Exchange, symbol: str) -> tuple[list, bool, float, bool, int, dict]:
+def get_open_positions(exchange: Exchange, symbol: str) -> tuple[list, bool, float, bool, int, dict]:
 
     # what is the position index for that symbol?
-    if symbol == 'BTC/USDT':
-        index_pos = 4
-    elif symbol == 'SOL/USDT':
-        index_pos = 2
-    elif symbol == 'ETH/USDT':
-        index_pos = 3
-    elif symbol == 'DOGE/USDT':
-        index_pos = 1
-    elif symbol == 'SHIB/USDT':
-        index_pos = 0
-    else:
-        index_pos = None # just break it... 
+    match symbol:
+        case 'BTCUSDT':
+            index_pos = 0
+        case 'SOLUSDT':
+            index_pos = 1
+        case 'ETHUSDT':
+            index_pos = 2
+        case 'DOGEUSDT':
+            index_pos = 3
+        case 'SHIBUSDT':
+            index_pos = 4
+        case _:
+            index_pos = None
+        
+    print(f'index_pos: {index_pos}')
 
-    params = {'type':'swap', 'code':'USD'}
+    params = {'type':'swap', 'code':'USDT'}
     balance = exchange.fetch_balance(params=params)
     open_positions = balance['info']['data']['positions']
-    #print(open_positions)
+    # print(open_positions)
 
-    open_pos_side = open_positions[index_pos]['side'] # btc [3] [0] = doge, [1] ape
+    open_pos_side = open_positions[index_pos]['side']
     open_pos_size = open_positions[index_pos]['size']
     #print(open_positions)
 
@@ -424,26 +425,21 @@ def open_positions(exchange: Exchange, symbol: str) -> tuple[list, bool, float, 
 def kill_switch(exchange: Exchange, symbol: str) -> None:
 
     print(f'starting the kill switch for {symbol}')
-    open_position = open_positions(exchange, symbol)[1] # true or false
-    long = open_positions(exchange, symbol)[3]# t or false
-    kill_size = open_positions(exchange, symbol)[2] # size thats open  
+    open_positions, open_pos_bool, open_pos_size, long, index_pos, balance = get_open_positions(exchange, symbol)
 
-    print(f'open_position {open_position}, long {long}, size {kill_size}')
+    print(f'open_position {open_pos_bool}, long {long}, size {open_pos_size}')
 
-    while open_position == True:
+    while open_pos_bool == True:
 
         print('starting kill switch loop til limit fil..')
         temp_df = pd.DataFrame()
         print('just made a temp df')
 
         exchange.cancel_all_orders(symbol)
-        open_position = open_positions(exchange, symbol)[1]
-        long = open_positions(exchange, symbol)[3] # true or false
-        kill_size = open_positions(exchange, symbol)[2]
-        kill_size = int(kill_size)
+        open_positions, open_pos_bool, open_pos_size, long, index_pos, balance = get_open_positions(exchange, symbol)
+        kill_size = int(open_pos_size)
         
-        ask = ask_bid(exchange, symbol)[0]
-        bid = ask_bid(exchange, symbol)[1]
+        ask, bid = ask_bid(exchange, symbol)
 
         if long == False:
             exchange.create_limit_buy_order(symbol, kill_size, bid, params)
@@ -458,23 +454,24 @@ def kill_switch(exchange: Exchange, symbol: str) -> None:
         else:
             print('++++++ SOMETHING I DIDN\'T EXCEPT IN KILL SWITCH FUNCTION')
             
-        open_position = open_positions(exchange, symbol)[1]
+        # open_position = get_open_positions(exchange, symbol)[1]
 
 # pnl_close() [0] pnl_close and [1] in_pos [2]size [3]long TF
 # takes in symbol, target, max loss
-def pnl_close(exchange: Exchange, symbol: str, target: float, max_loss: float) -> tuple[bool, bool, float, bool]:
+def get_pnl_close(exchange: Exchange, symbol: str, target: float, max_loss: float) -> tuple[bool, bool, float, bool]:
 
     #     target = 35
     # max_loss = -55
     
     print(f'checking to see if its time to exit for {symbol}... ')
 
-    params = {'type':"swap", 'code':'USD'}
-    pos_dict = exchange.fetch_positions(params=params)
-    #print(pos_dict)
+    # params = {'type':"swap", 'code':'USDT'}
+    # pos_dict = exchange.fetch_positions(params=params)
+    pos_dict = exchange.fetch_positions(symbols=[symbol])
+    # print(f'pos_dict: {pos_dict}')
 
-    index_pos = open_positions(exchange, symbol)[4]
-    pos_dict = pos_dict[index_pos] # btc [3] [0] = doge, [1] ape
+    index_pos = get_open_positions(exchange, symbol)[4]
+    pos_dict = pos_dict[index_pos]
     side = pos_dict['side']
     size = pos_dict['contracts']
     entry_price = float(pos_dict['entryPrice'])
@@ -530,7 +527,7 @@ def pnl_close(exchange: Exchange, symbol: str, target: float, max_loss: float) -
             print(f'we are in a losing position of {percentage}.. but we are fine because max loss is {max_loss}')
 
     else:
-        print('we are not in position')
+        print('we have no position to gain or lose..')
 
     if in_pos == True:
 
@@ -555,8 +552,121 @@ def pnl_close(exchange: Exchange, symbol: str, target: float, max_loss: float) -
         #print(sl_val)
 
     else:
-        print('we are not in position.. ')
+        print('we are not in any position currently.. ')
 
     print(f' for {symbol} just finished checking PNL close..')
 
     return pnl_close, in_pos, size, long
+
+
+def sleep_on_close(exchange: Exchange, symbol: str):
+
+    '''
+    this function pulls closed orders, then if last close was in last 59min
+    then it sleeps for 1m
+    since_last_trade = minutes since last trade
+    '''
+
+    closed_orders = exchange.fetch_closed_orders(symbol)
+    #print(closed_orders)
+
+    for ord in closed_orders[-1::-1]:
+
+        since_last_trade = 59 # how long we pause
+
+        filled = False 
+
+        status = ord['info']['ordStatus']
+        tx_time = ord['info']['transactTimeNs']
+        tx_time = int(tx_time)
+        tx_time = round((tx_time/1000000000)) # time in nanoseconds
+        print(f'this is the status of the order {status} with epoch {tx_time}')
+        print('next iteration...')
+        print('------')
+
+        if status == 'Filled':
+            print('FOUND the order with last fill..')
+            print(f'this is the time {tx_time} this is the order status: {status}')
+            ob = exchange.fetch_order_book(symbol)
+            ex_timestamp = ob['timestamp'] # in ms 
+            ex_timestamp = int(ex_timestamp/1000)
+            print('---- below is the transaction time then exchange epoch time')
+            print(tx_time)
+            print(ex_timestamp)
+
+            time_spread = (ex_timestamp - tx_time)/60
+
+            if time_spread < since_last_trade:
+                # print('time since last trade is less than time spread')
+                # # if in pos is true, put a close order here
+                # if in_pos == True:
+
+                sleepy = round(since_last_trade-time_spread)*60
+                sleepy_min = sleepy/60
+
+                print(f'the time spread is less than {since_last_trade} mins its been {time_spread}mins.. so sleep for 60 secs..')
+                sleep(60)
+
+            else:
+                print(f'its been {time_spread}mins since last fill so not sleeping because since_last_trade is: {since_last_trade}')
+            break 
+        else:
+            continue 
+
+    print('done with the sleep on close function.. ')
+    
+    
+    # daily_sma()[0] = df_d # which is the daily sma
+def daily_sma(exchange: Exchange, symbol: str):
+
+    print('starting SMA indicator...')
+
+    timeframe = '1d'
+    num_bars = 100
+
+    bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
+    #print(bars)
+    df_d = pd.DataFrame(bars, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    df_d['timestamp'] = pd.to_datetime(df_d['timestamp'], unit='ms')
+
+    # DAILY SMA - 20 day
+    df_d['sma20_d'] = df_d.close.rolling(20).mean()
+
+    # if bid < the 20 day sma then = BEARISH, if bid > 20 day sma = BULLISH
+    ask, bid = ask_bid(exchange, symbol)
+    
+    # if sma > bid = SELL, if sma < bid = BUY
+    df_d.loc[df_d['sma20_d']>bid, 'sig'] = 'SELL'
+    df_d.loc[df_d['sma20_d']<bid, 'sig'] = 'BUY'
+
+    #print(df_d)
+
+    return df_d
+
+
+#daily_sma()[0] = df_f which is the 15m sma 
+def f15_sma(exchange: Exchange, symbol: str):
+
+    print('starting 15 min SMA...')
+
+    timeframe = '15m'
+    num_bars = 100
+
+    bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
+    #print(bars)
+    df_f = pd.DataFrame(bars, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    df_f['timestamp'] = pd.to_datetime(df_f['timestamp'], unit='ms')
+
+    # DAILY SMA - 20 day
+    df_f['sma20_15'] = df_f.close.rolling(20).mean()
+
+    # BUY PRICE 1+2 AND SELL PRICE1+2 (then later figure out which i chose)
+    # buy/sell to open around the 15m sma (20day) - .1% under and .3% over
+    df_f['bp_1'] = df_f['sma20_15'] * 1.001 # 15m sma .1% under and .3% over
+    df_f['bp_2'] = df_f['sma20_15'] * .997
+    df_f['sp_1'] = df_f['sma20_15'] * .999
+    df_f['sp_2'] = df_f['sma20_15'] * 1.003
+
+    #print(df_f)
+
+    return df_f
