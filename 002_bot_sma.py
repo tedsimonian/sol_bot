@@ -12,7 +12,7 @@ phemex = get_phemex_connection()
 
 # config settings for bot
 symbol = 'BTCUSDT'
-pos_size = 30 # 125, 75, 
+pos_size = 10 # 125, 75, 
 target = 8
 max_loss = -9
 vol_decimal = .4
@@ -84,13 +84,13 @@ def bot():
 
 
 # run the bot every 28 seconds
-# schedule.every(28).seconds.do(bot)
+schedule.every(28).seconds.do(bot)
 
-# while True:
-#     try:
-#         schedule.run_pending()
-#     except:
-#         print('+++++ ERROR RUNNING BOT, SLEEPING FOR 30 SECONDS BEFORE RETRY')
-#         sleep(30)
+while True:
+    try:
+        schedule.run_pending()
+    except:
+        print('+++++ ERROR RUNNING BOT, SLEEPING FOR 30 SECONDS BEFORE RETRY')
+        sleep(30)
 
-bot()
+# bot()
