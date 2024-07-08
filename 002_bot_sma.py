@@ -12,11 +12,10 @@ phemex = get_phemex_connection()
 
 # config settings for bot
 symbol = 'BTCUSDT'
-pos_size = 10 # 125, 75, 
+pos_size = 58 
 target = 8
 max_loss = -9
 vol_decimal = .4
-params = {'timeInForce': 'PostOnly'}
 
 def bot():
     get_pnl_close(phemex, symbol, target, max_loss) # checking if we hit our pnl
@@ -50,10 +49,9 @@ def bot():
 
         phemex.cancel_all_orders(symbol)
 
-        # fix order function so i stop sending orders in if price > sma 
-
         if (signal == 'BUY') and (curr_p > last_sma15):
-
+            params = {'timeInForce': 'PostOnly', 'posSide': 'Long'}
+            
             # buy sma daily is < price == BUY
             print('making an opening order as a BUY')
             bp_1 = df_f.iloc[-1]['bp_1']
@@ -66,6 +64,8 @@ def bot():
             print('just made opening order so going to sleep for 2mins..')
             sleep(120)
         elif (signal == 'SELL') and (curr_p < last_sma15):
+            params = {'timeInForce': 'PostOnly', 'posSide': 'Short'}
+            
             print('making an opening order as a SELL')
             sp_1 = df_f.iloc[-1]['sp_1']
             sp_2 = df_f.iloc[-1]['sp_2']

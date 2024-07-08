@@ -575,9 +575,15 @@ def sleep_on_close(exchange: Exchange, symbol: str):
         since_last_trade = 59 # how long we pause
 
         filled = False 
-
         status = ord['info']['ordStatus']
-        tx_time = ord['info']['transactTimeNs']
+        
+        # Try to get 'transactTimeNs', if not available, use 'createdAt' as an alternative
+        tx_time = ord['info'].get('transactTimeNs', ord['info'].get('createdAt'))
+        
+        if tx_time is None:
+            print("Neither 'transactTimeNs' nor 'createdAt' found in order info.")
+            continue
+        
         tx_time = int(tx_time)
         tx_time = round((tx_time/1000000000)) # time in nanoseconds
         print(f'this is the status of the order {status} with epoch {tx_time}')

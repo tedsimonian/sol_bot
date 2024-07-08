@@ -14,7 +14,6 @@ rsi_window = 14 # the n most recent amount of candles to check if stoch rsi sugg
 timeframe = '1h' # use m for minutes and h for hours, EX. 1m (1 minute) or 4h (4 hour)
 symbol = 'BTCUSDT'
 size = 10
-params = {'timeInForce': 'PostOnly'}
 
 def bot():
         # get your current position in the market
@@ -36,11 +35,13 @@ def bot():
         if not in_position:
             # place a long order if the nadarya indicator has said to buy OR if the stoch rsi indicator suggests it is oversold
             if nadarya_buy_signal or is_oversold(candles['stoch_rsi'], rsi_window, 1, rsi_targets[0]):
+                params = {'timeInForce': 'PostOnly', 'posSide': 'Long'}
                 order = phemex.create_limit_buy_order(symbol, size, price=bid, params=params)
                 print(f"Placed a limit buy order: {order}")
 
             # place a short order if the nadarya indicator has said to sell OR if the stoch rsi indicator suggests it is overbought
             elif nadarya_sell_signal or is_overbought(candles['stoch_rsi'], rsi_window, 1, rsi_targets[1]):
+                params = {'timeInForce': 'PostOnly', 'posSide': 'Short'}
                 order = phemex.create_limit_sell_order(symbol, size, price=bid, params=params)
                 print(f"Placed a limit sell order: {order}")
             
