@@ -1,5 +1,5 @@
 """
-Strategy_010
+Strategy_009
 
 Technical indicators:
     - Bollinger Bands
@@ -35,7 +35,7 @@ import warnings
 # filter all warnings
 warnings.filterwarnings('ignore')
 
-class Strategy_010(Strategy):
+class Strategy_009(Strategy):
     bb_length = 20
     bb_mult = 2.0
     kc_length = 20
@@ -84,7 +84,7 @@ class Strategy_010(Strategy):
 exchange = get_kucoin_connection()
 data_df = fetch_data_from_exchange(exchange, SYMBOL, TIMEFRAME, LIMIT)
 
-bt = Backtest(data_df, Strategy_010, cash=STARTING_CAPITAL, commission=COMMISSION)
+bt = Backtest(data_df, Strategy_009, cash=STARTING_CAPITAL, commission=COMMISSION)
 stats = bt.run()
 
 bt.plot()
