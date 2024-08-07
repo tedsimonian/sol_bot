@@ -20,17 +20,14 @@ Exit:
     - Short: When the squeeze condition changes and the current position is short.
 """
 
-from backtesting import Backtest, Strategy 
-from backtesting.lib import crossover
+from backtesting import Backtest, Strategy
 
 from utilities import fetch_data_from_exchange
-from connector import get_kucoin_connection
+from connector import get_phemex_connection
 from constants import COMMISSION, LIMIT, STARTING_CAPITAL, SYMBOL, TIMEFRAME
 
 import talib
-import numpy as np
-import pandas as pd
-import warnings 
+import warnings
 
 # filter all warnings
 warnings.filterwarnings('ignore')
@@ -40,6 +37,7 @@ class Strategy_009(Strategy):
     bb_mult = 2.0
     kc_length = 20
     kc_mult = 1.5
+    use_true_range = True
 
     def init(self):
         close = self.data.Close
@@ -52,12 +50,21 @@ class Strategy_009(Strategy):
         self.bb_lower = self.bb_basis - self.bb_dev
 
         self.kc_ma = self.I(talib.SMA, close, self.kc_length)
-        self.kc_range = self.I(lambda x: talib.TRANGE(high, low, close) if useTrueRange else (high - low))
+        if self.use_true_range:
+            self.kc_range = self.I(talib.TRANGE, high, low, close)
+        else:
+            self.kc_range = high - low
         self.kc_range_ma = self.I(talib.SMA, self.kc_range, self.kc_length)
         self.kc_upper = self.kc_ma + self.kc_range_ma * self.kc_mult
         self.kc_lower = self.kc_ma - self.kc_range_ma * self.kc_mult
 
-        self.linreg_val = self.I(lambda x: talib.LINEARREG(close - talib.SMA((talib.MAX(high, self.kc_length) + talib.MIN(low, self.kc_length) + talib.SMA(close, self.kc_length)) / 3, self.kc_length), self.kc_length), close)
+        def linreg_val():
+            highest_high = talib.MAX(high, self.kc_length)
+            lowest_low = talib.MIN(low, self.kc_length)
+            avg_price = (highest_high + lowest_low + talib.SMA(close, self.kc_length)) / 3
+            return talib.LINEARREG(close - talib.SMA(avg_price, self.kc_length), self.kc_length)
+        
+        self.linreg_val = self.I(linreg_val)
         self.sqz_on = self.I(lambda: (self.bb_lower > self.kc_lower) & (self.bb_upper < self.kc_upper))
         self.sqz_off = self.I(lambda: (self.bb_lower < self.kc_lower) & (self.bb_upper > self.kc_upper))
         self.no_sqz = self.I(lambda: ~(self.sqz_on | self.sqz_off))
@@ -81,7 +88,7 @@ class Strategy_009(Strategy):
         if short_exit_condition:
             self.position.close()
 
-exchange = get_kucoin_connection()
+exchange = get_phemex_connection()
 data_df = fetch_data_from_exchange(exchange, SYMBOL, TIMEFRAME, LIMIT)
 
 bt = Backtest(data_df, Strategy_009, cash=STARTING_CAPITAL, commission=COMMISSION)
