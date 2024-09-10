@@ -24,13 +24,15 @@ from backtesting import Backtest, Strategy
 
 from utilities import fetch_data_from_exchange
 from connector import get_phemex_connection
-from constants import COMMISSION, LIMIT, STARTING_CAPITAL, SYMBOL, TIMEFRAME
+from constants import COMMISSION, LIMIT, STARTING_CAPITAL, SYMBOL
 
 import talib
 import warnings
 
 # filter all warnings
 warnings.filterwarnings('ignore')
+
+TIMEFRAME = "1d"
 
 class Strategy_009(Strategy):
     bb_length = 20

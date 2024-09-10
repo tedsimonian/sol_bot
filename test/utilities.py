@@ -8,7 +8,7 @@ def fetch_data_from_exchange(exchange: Exchange, symbol: str, timeframe: str, li
     Args:
         exchange (Exchange): Exchange to fetch data from. I.e. ccxt.phemex()
         symbol (str): Symbol to fetch data for. I.e. 'BTCUSD' or 'SOL/USDT' (depends on your exchange)
-        timeframe (str): Timeframe to fetch data for. I.e. '1m', '5m', '15m', '1h', '2h', 'day', 'week'
+        timeframe (str): Timeframe to fetch data for. I.e. '1m', '5m', '15m', '1h', '2h', '1d', '1w'
         limit (int, optional): Number of data points to fetch. Defaults to 2000.
         columns (list, optional): Columns to fetch. Defaults to ['timestamp', 'open', 'high', 'low', 'close', 'volume']
     Returns:
