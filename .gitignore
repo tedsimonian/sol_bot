@@ -69,3 +69,6 @@ dmypy.json
 .pytype/
 cython_debug/
 .pyrightconfig.json
+
+# Plot generated files
+Strategy*.html
